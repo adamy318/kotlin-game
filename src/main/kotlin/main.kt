@@ -1,4 +1,62 @@
 import kotlin.random.Random
+import kotlin.system.exitProcess
+
+abstract class Entity(var position: Pair<Int, Int>) {
+    open var hp: Int = 0
+    open val attackPower: Int = 0
+
+    fun getXPos(): Int {
+        return position.first
+    }
+
+    fun getYPos(): Int {
+        return position.second
+    }
+
+    fun attack(player: Entity) {
+        if (player.hp <= attackPower) {
+            player.hp = -1
+        } else {
+            player.hp -= attackPower
+        }
+    }
+
+    fun isDead(): Boolean {
+        return this.hp == -1
+    }
+
+    fun checkSamePosition(entity: Entity): Boolean {
+        return this.getXPos() == entity.getXPos() && this.getYPos() == entity.getYPos()
+    }
+
+}
+
+class Monster(position: Pair<Int, Int>) : Entity(position = position) {
+    override var hp = 50
+    override val attackPower = 10
+}
+
+class Hero(position: Pair<Int, Int>) : Entity(position = position) {
+    override var hp = 200
+    override val attackPower = 40
+
+    fun moveLeft() {
+        position = Pair(position.first - 1, position.second)
+    }
+
+    fun moveRight() {
+        position = Pair(position.first + 1, position.second)
+    }
+
+    fun moveUp() {
+        position = Pair(position.first , position.second + 1)
+    }
+
+    fun moveDown() {
+        position = Pair(position.first , position.second - 1)
+    }
+
+}
 
 fun main() {
 
@@ -6,48 +64,56 @@ fun main() {
     val s = 3
     val grid = Array(s) { _ -> Array(s) { _ -> 0 } }
 
-    var monsterCount = 0
+    val monsters = mutableListOf<Monster>()
+    val monsterPositions = mutableListOf<Pair<Int,Int>>()
 
-    while (monsterCount < 5) {
+    while (monsters.size < 5) {
+
         var (x, y) = Pair(Random.nextInt(0,s), Random.nextInt(0,s))
-        if (grid[x][y] != 4) {
-            grid[x][y] = 4
-            monsterCount++
+        for (monster in monsters) {
+            if (x == monster.getXPos() && y == monster.getYPos()) {
+                while (x == monster.getXPos() && y == monster.getYPos()) {
+                    x = Random.nextInt(0,s)
+                    y = Random.nextInt(0,s)
+                }
+            }
+
         }
+        monsters.add(Monster(Pair(x,y)))
     }
 
-    var player: Pair<Int, Int>
-    var (x, y) = Pair(Random.nextInt(0,s), Random.nextInt(0,s))
-    if (grid[x][y] == 4) {
-        while (grid[x][y] == 4) {
-            x = Random.nextInt(0,s)
-            y = Random.nextInt(0,s)
-        }
-    }
-    player = Pair(x, y)
+    val (x, y) = Pair(Random.nextInt(0,s), Random.nextInt(0,s))
+    val player = Hero(Pair(x, y))
 
-    //var monsters: MutableMap<Int, MutableList<Int>> = mutableMapOf(1 to mutableListOf(2))
+    for (monster in monsters) {
+        monsterPositions.add(monster.position)
+    }
+    while (player.position !in monsterPositions) {
+        player.position = Pair(Random.nextInt(0,s), Random.nextInt(0,s))
+    }
+
+
 
     println("The size of the map is ${grid.size}.")
-    println("Your position is at (${player.first},${player.second}).")
-    println("There are $monsterCount monsters that you need to kill.")
+    println("Your position is at (${player.getXPos()},${player.getYPos()}).")
+    println("There are ${monsters.size} monsters that you need to kill.")
     println("Kill them all to beat the game.")
     println()
     while (true) {
         var inValidMove = false
-        val prevPlayerLocation = player
+        val prevPlayerLocation = player.position
 
-        println("You are at position (${player.first},${player.second}).")
+        println("You are at position (${player.getXPos()},${player.getYPos()}).")
         print("Your move: ")
 
         val input = readLine()
 
         if (input != null) {
             when (input) {
-                "left" -> player = Pair(player.first - 1, player.second)
-                "right" -> player = Pair(player.first + 1, player.second)
-                "up" -> player = Pair(player.first, player.second + 1)
-                "down" -> player = Pair(player.first, player.second - 1)
+                "left" -> player.moveLeft()
+                "right" -> player.moveRight()
+                "up" -> player.moveUp()
+                "down" -> player.moveDown()
                 else ->  inValidMove = true
             }
 
@@ -57,45 +123,64 @@ fun main() {
                 continue
             }
 
-            if (player.first !in grid.indices || player.second !in grid.indices) {
-                if (player.first < 0) {
+            if (player.getXPos() !in grid.indices || player.getYPos() !in grid.indices) {
+                if (player.getXPos() < 0) {
                     println("Cannot move left. Please try another move.")
                 }
-                if (player.first == grid.size) {
+                if (player.getXPos() == grid.size) {
                     println("Cannot move right. Please try another move")
                 }
-                if (player.second < 0) {
+                if (player.getYPos() < 0) {
                     println("Cannot move down. Please try another move")
                 }
-                if (player.second == grid.size) {
+                if (player.getYPos() == grid.size) {
                     println("Cannot move up. Please try another move")
                 }
                 println()
-                player = prevPlayerLocation
+                player.position = prevPlayerLocation
                 continue
             }
 
-            if (grid[player.first][player.second] == 4) {
-                println("You have encountered a monster!")
-                println("Type 'kill' to kill it.")
-                print(": ")
-                var kill = readLine()
-                if (kill != "kill") {
-                    while (kill != "kill") {
-                        println("Type 'kill' to kill the monster")
-                        print(": ")
-                        kill = readLine()
+            for (monster in monsters) {
+                if (player.checkSamePosition(monster)) {
+                    println("You have encountered a monster!")
+                    println("It has ${monster.hp} HP")
+                    println("Type 'attack' to attack it until it dies.")
+                    print(": ")
+                    while (monster.hp > 0) {
+                        var attack = readLine()
+                        if (attack != "attack") {
+                            while (attack != "attack") {
+                                println("Type 'attack' to attack the monster")
+                                print(": ")
+                                attack = readLine()
+                            }
+                        }
+                        player.attack(monster)
+                        if (!monster.isDead()) {
+                            println("You've dealt ${player.attackPower} dmg to the monster.")
+                            println("It has ${monster.hp} HP left.")
+                            println("Keep attacking the monster until it dies!")
+                            print(": ")
+                        }
                     }
-                }
-                monsterCount--
-                if (monsterCount == 0) {
-                    println("Congrats! You have killed all the monsters and beat the game!")
+
+
+                    monsters.remove(monster)
+                    if (monsters.size == 0) {
+                        println("Congrats! You have killed all the monsters and beat the game!")
+                        exitProcess(0)
+                    } else {
+                        println("You have killed the monster! Only ${monsters.size} left to go.")
+                    }
                     break
-                } else {
-                    grid[player.first][player.second] = 0
-                    println("You have killed the monster! Only $monsterCount left to go.")
+
+
                 }
+
             }
+
+
 
         } else {
             println("Please try again.")
